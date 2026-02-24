@@ -131,9 +131,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-enum class AgeRating(val label: String) {
-    A0("0+"), A6("6+"), A8("8+"), A12("12+"), A16("16+"), A18("18+")
-}
+
 
 data class Shot(val id: String, val desc: String)
 
@@ -278,8 +276,6 @@ fun OnboardScreen(onCont: () -> Unit) {
 
         }
 
-
-
         Button(
             onClick = onCont,
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0078FF)),
@@ -300,7 +296,6 @@ fun OnboardScreen(onCont: () -> Unit) {
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShowcaseScreen(onApp: (String) -> Unit, onCats: () -> Unit, onSearch: () -> Unit) {
@@ -312,8 +307,15 @@ fun ShowcaseScreen(onApp: (String) -> Unit, onCats: () -> Unit, onSearch: () -> 
         state = State.Ok(allApps())
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(BgGray)) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            state = State.Loading
+        },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(modifier = Modifier.fillMaxSize().background(BgGray)) {
             TopAppBar(
                 title = { Text("RuStore", fontWeight = FontWeight.Bold, color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = RuBlue),
@@ -335,32 +337,6 @@ fun ShowcaseScreen(onApp: (String) -> Unit, onCats: () -> Unit, onSearch: () -> 
                 is State.Ok -> AppsList((state as State.Ok).data, onApp, onCats)
             }
         }
-
-        if (isRefreshing) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .background(RuBlue)
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color.White)
-            }
-        }
-
-        FloatingActionButton(
-            onClick = {
-                isRefreshing = true
-                state = State.Loading
-            },
-            modifier = Modifier
-                .padding(16.dp)
-                .align(Alignment.BottomEnd),
-            containerColor = RuBlue
-        ) {
-            Icon(Icons.Filled.Refresh, contentDescription = "Обновить", tint = Color.White)
-        }
     }
 
     LaunchedEffect(isRefreshing) {
@@ -372,12 +348,10 @@ fun ShowcaseScreen(onApp: (String) -> Unit, onCats: () -> Unit, onSearch: () -> 
     }
 }
 
-
-
 @Composable
 fun AppsList(apps: List<App>, onApp: (String) -> Unit, onCats: () -> Unit) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),  // ✅ НЕ background!
+        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
@@ -465,55 +439,69 @@ fun AppCard(app: App, onClick: () -> Unit) {
 @Composable
 fun CategoriesScreen(onCat: (AppCategory) -> Unit) {
     val stats = remember { catStats() }
-    Column(modifier = Modifier.fillMaxSize().background(BgGray)) {
-        TopAppBar(
-            title = { Text("Категории", fontWeight = FontWeight.Bold, color = Color.White) },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = RuBlue)
-        )
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            items(AppCategory.entries) { cat ->
-                Card(
-                    onClick = { onCat(cat) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+    var isRefreshing by remember { mutableStateOf(false) }
+
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = { isRefreshing = true },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(modifier = Modifier.fillMaxSize().background(BgGray)) {
+            TopAppBar(
+                title = { Text("Категории", fontWeight = FontWeight.Bold, color = Color.White) },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = RuBlue)
+            )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(AppCategory.entries) { cat ->
+                    Card(
+                        onClick = { onCat(cat) },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(CircleShape)
-                                .background(CatColors[cat]?.copy(alpha = 0.1f) ?: RuBlue.copy(alpha = 0.1f)),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                imageVector = CatIcons[cat] ?: Icons.Default.Menu,
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp),
-                                tint = CatColors[cat] ?: RuBlue
-                            )
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(CatColors[cat]?.copy(alpha = 0.1f) ?: RuBlue.copy(alpha = 0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = CatIcons[cat] ?: Icons.Default.Menu,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(24.dp),
+                                    tint = CatColors[cat] ?: RuBlue
+                                )
+                            }
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(text = cat.title, fontWeight = FontWeight.SemiBold)
+                                Text(text = "${stats[cat]} приложений", fontSize = 12.sp, color = TextGray)
+                            }
+                            Icon(Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = TextLight)
                         }
-                        Spacer(Modifier.width(16.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(text = cat.title, fontWeight = FontWeight.SemiBold)
-                            Text(text = "${stats[cat]} приложений", fontSize = 12.sp, color = TextGray)
-                        }
-                        Icon(Icons.Filled.KeyboardArrowRight, contentDescription = null, tint = TextLight)
                     }
                 }
             }
         }
     }
-}
 
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            delay(1000)
+            isRefreshing = false
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -526,8 +514,15 @@ fun CatAppsScreen(cat: AppCategory, onBack: () -> Unit, onApp: (String) -> Unit)
         state = State.Ok(appsByCat(cat))
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(BgGray)) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            state = State.Loading
+        },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(modifier = Modifier.fillMaxSize().background(BgGray)) {
             TopAppBar(
                 title = { Text(text = cat.title, fontWeight = FontWeight.Bold, color = Color.White) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CatColors[cat] ?: RuBlue),
@@ -564,32 +559,6 @@ fun CatAppsScreen(cat: AppCategory, onBack: () -> Unit, onApp: (String) -> Unit)
                 }
             }
         }
-
-        if (isRefreshing) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .background(CatColors[cat] ?: RuBlue)
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color.White)
-            }
-        }
-
-        FloatingActionButton(
-            onClick = {
-                isRefreshing = true
-                state = State.Loading
-            },
-            modifier = Modifier
-                .padding(16.dp)
-                .align(Alignment.BottomEnd),
-            containerColor = CatColors[cat] ?: RuBlue
-        ) {
-            Icon(Icons.Filled.Refresh, contentDescription = "Обновить", tint = Color.White)
-        }
     }
 
     LaunchedEffect(isRefreshing) {
@@ -601,7 +570,6 @@ fun CatAppsScreen(cat: AppCategory, onBack: () -> Unit, onApp: (String) -> Unit)
     }
 }
 
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(onBack: () -> Unit, onApp: (String) -> Unit) {
@@ -609,78 +577,95 @@ fun SearchScreen(onBack: () -> Unit, onApp: (String) -> Unit) {
     var res by remember { mutableStateOf<List<App>>(emptyList()) }
     val pop = remember { popularApps() }
     val focusRequester = remember { FocusRequester() }
+    var isRefreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { delay(300); focusRequester.requestFocus() }
     LaunchedEffect(q) { delay(300); res = searchApps(q) }
 
-    Column(modifier = Modifier.fillMaxSize().background(BgGray)) {
-        TopAppBar(
-            title = {
-                OutlinedTextField(
-                    value = q,
-                    onValueChange = { q = it },
-                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                    placeholder = { Text("Поиск...") },
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = TextGray) },
-                    trailingIcon = {
-                        if (q.isNotEmpty()) {
-                            IconButton(onClick = { q = "" }) {
-                                Icon(Icons.Filled.Close, contentDescription = null, tint = TextGray)
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+            res = emptyList()
+        },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(modifier = Modifier.fillMaxSize().background(BgGray)) {
+            TopAppBar(
+                title = {
+                    OutlinedTextField(
+                        value = q,
+                        onValueChange = { q = it },
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                        placeholder = { Text("Поиск...") },
+                        singleLine = true,
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null, tint = TextGray) },
+                        trailingIcon = {
+                            if (q.isNotEmpty()) {
+                                IconButton(onClick = { q = "" }) {
+                                    Icon(Icons.Filled.Close, contentDescription = null, tint = TextGray)
+                                }
                             }
-                        }
-                    },
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
-                        cursorColor = RuBlue
-                    ),
-                    shape = RoundedCornerShape(12.dp)
-                )
-            },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = RuBlue),
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.Filled.ArrowBack, contentDescription = null, tint = Color.White)
-                }
-            }
-        )
-
-        when {
-            q.isEmpty() -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Filled.KeyboardArrowUp,
-                            contentDescription = null,
-                            tint = RuBlue,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("Популярные", fontWeight = FontWeight.SemiBold)
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            cursorColor = RuBlue
+                        ),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = RuBlue),
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = null, tint = Color.White)
                     }
                 }
-                items(pop, key = { it.id }) { app -> AppCard(app) { onApp(app.id) } }
-            }
-            res.isEmpty() -> EmptyView("Не найдено", "По запросу \"$q\" ничего нет", Icons.Outlined.Close)
-            else -> LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                item { Text("Найдено: ${res.size}", fontSize = 12.sp, color = TextGray) }
-                items(res, key = { it.id }) { app -> AppCard(app) { onApp(app.id) } }
+            )
+
+            when {
+                q.isEmpty() -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item {
+                        Row() {
+                            Icon(
+                                imageVector = Icons.Filled.KeyboardArrowUp,
+                                contentDescription = null,
+                                tint = RuBlue,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("Популярные", fontWeight = FontWeight.SemiBold)
+                        }
+                    }
+                    items(pop, key = { it.id }) { app -> AppCard(app) { onApp(app.id) } }
+                }
+                res.isEmpty() -> EmptyView("Не найдено", "По запросу \"$q\" ничего нет", Icons.Outlined.Close)
+                else -> LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    item { Text("Найдено: ${res.size}", fontSize = 12.sp, color = TextGray) }
+                    items(res, key = { it.id }) { app -> AppCard(app) { onApp(app.id) } }
+                }
             }
         }
     }
-}
 
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            delay(1000)
+            res = searchApps(q)
+            isRefreshing = false
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -690,9 +675,21 @@ fun AppDetailScreen(id: String, onBack: () -> Unit, onShot: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     var installed by remember { mutableStateOf(false) }
 
+    fun loadApp() {
+        state = State.Loading
+    }
+
     LaunchedEffect(id) {
         delay(400)
         state = State.Ok(appById(id))
+    }
+
+    LaunchedEffect(isRefreshing) {
+        if (isRefreshing) {
+            delay(800)
+            state = State.Ok(appById(id))
+            isRefreshing = false
+        }
     }
 
     val app = (state as? State.Ok)?.data
@@ -703,28 +700,14 @@ fun AppDetailScreen(id: String, onBack: () -> Unit, onShot: (Int) -> Unit) {
     if (app == null) {
         Column(modifier = Modifier.fillMaxSize().background(BgGray)) {
             TopAppBar(
-                title = { app?.let { Text(text = it.name, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1) } },
+                title = { },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = RuBlue),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.Filled.ArrowBack,
-                            contentDescription = null,
-                            tint = Color.White
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = {}) {
-                        Icon(
-                            imageVector = Icons.Filled.Share,
-                            contentDescription = null,
-                            tint = Color.White
-                        )
+                        Icon(Icons.Filled.ArrowBack, contentDescription = null, tint = Color.White)
                     }
                 }
             )
-
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(color = RuBlue)
             }
@@ -732,9 +715,14 @@ fun AppDetailScreen(id: String, onBack: () -> Unit, onShot: (Int) -> Unit) {
         return
     }
 
-
-    Box(modifier = Modifier.fillMaxSize().background(BgGray)) {
-        Column(modifier = Modifier.fillMaxSize()) {
+    PullToRefreshBox(
+        isRefreshing = isRefreshing,
+        onRefresh = {
+            isRefreshing = true
+        },
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Column(modifier = Modifier.fillMaxSize().background(BgGray)) {
             TopAppBar(
                 title = { Text(text = app.name, fontWeight = FontWeight.Medium, color = Color.White, maxLines = 1) },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = RuBlue),
@@ -755,7 +743,6 @@ fun AppDetailScreen(id: String, onBack: () -> Unit, onShot: (Int) -> Unit) {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Header
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
@@ -785,7 +772,7 @@ fun AppDetailScreen(id: String, onBack: () -> Unit, onShot: (Int) -> Unit) {
                                                 text = app.cat.title,
                                                 modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                                 fontSize = 12.sp,
-                                                color = CatColors[app.cat] ?: RuBlue  // ✅ Null safety
+                                                color = CatColors[app.cat] ?: RuBlue
                                             )
                                         }
                                         Spacer(Modifier.width(8.dp))
@@ -815,7 +802,6 @@ fun AppDetailScreen(id: String, onBack: () -> Unit, onShot: (Int) -> Unit) {
                         }
                     }
                 }
-
 
                 if (app.shots.isNotEmpty()) {
                     item {
@@ -857,7 +843,6 @@ fun AppDetailScreen(id: String, onBack: () -> Unit, onShot: (Int) -> Unit) {
                     }
                 }
 
-                // Install button
                 item {
                     Button(
                         onClick = { installed = !installed },
@@ -882,7 +867,6 @@ fun AppDetailScreen(id: String, onBack: () -> Unit, onShot: (Int) -> Unit) {
                         )
                     }
                 }
-
 
                 item {
                     Card(
@@ -915,7 +899,6 @@ fun AppDetailScreen(id: String, onBack: () -> Unit, onShot: (Int) -> Unit) {
                     }
                 }
 
-
                 item {
                     Card(
                         modifier = Modifier
@@ -937,45 +920,8 @@ fun AppDetailScreen(id: String, onBack: () -> Unit, onShot: (Int) -> Unit) {
                 item { Spacer(modifier = Modifier.height(100.dp)) }
             }
         }
-
-
-        if (isRefreshing) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .align(Alignment.TopCenter)
-                    .background(RuBlue)
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(color = Color.White)
-            }
-        }
-
-        FloatingActionButton(
-            onClick = {
-                isRefreshing = true
-                state = State.Loading
-            },
-            modifier = Modifier
-                .padding(16.dp)
-                .align(Alignment.BottomEnd),
-            containerColor = RuBlue
-        ) {
-            Icon(Icons.Filled.Refresh, contentDescription = "Обновить", tint = Color.White)
-        }
-    }
-
-    // Refresh logic
-    LaunchedEffect(isRefreshing) {
-        if (isRefreshing) {
-            delay(1000)
-            state = State.Ok(appById(id))
-            isRefreshing = false
-        }
     }
 }
-
 
 @Composable
 fun Stat(icon: ImageVector, label: String, value: String) {
@@ -1038,7 +984,6 @@ fun ScreenshotScreen(id: String, idx: Int, onBack: () -> Unit) {
     val currentPage by remember { derivedStateOf { pagerState.currentPage } }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // Top bar
         Column(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -1068,7 +1013,6 @@ fun ScreenshotScreen(id: String, idx: Int, onBack: () -> Unit) {
             }
         }
 
-        // Pager
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
@@ -1107,7 +1051,6 @@ fun ScreenshotScreen(id: String, idx: Int, onBack: () -> Unit) {
             }
         }
 
-        // Bottom indicators
         Column(
             modifier = Modifier
                 .align(Alignment.BottomCenter)

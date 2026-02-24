@@ -19,3 +19,7 @@ enum class AppCategory(val title: String) {
     FINANCE("Финансы"), TOOLS("Инструменты"), GAMES("Игры"),
     GOVERNMENT("Государственные"), TRANSPORT("Транспорт")
 }
+
+enum class AgeRating(val label: String) {
+    A0("0+"), A6("6+"), A8("8+"), A12("12+"), A16("16+"), A18("18+")
+}
